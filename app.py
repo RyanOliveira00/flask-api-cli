@@ -1,14 +1,13 @@
 from flask import Flask, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager
 from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
-# Initialize extensions without app
+# Import extensions from the new extensions.py file
+from extensions import db, jwt
+
+# Load environment variables
 load_dotenv()
-db = SQLAlchemy()
-jwt = JWTManager()
 
 def create_app(test_config=None):
     app = Flask(__name__)
@@ -32,6 +31,7 @@ def create_app(test_config=None):
     if test_config:
         app.config.update(test_config)
     
+    # Initialize extensions with the app
     db.init_app(app)
     jwt.init_app(app)
     
@@ -56,22 +56,128 @@ def create_app(test_config=None):
     def revoked_token_callback(jwt_header, jwt_payload):
         return jsonify({"error": "Token has been revoked"}), 401
     
-    # Import models and blueprints
-    from models import User, Coffee, Purchase
-    from routes import auth_bp, coffee_bp, purchase_bp
+    # Add a simple route to show available endpoints
+    @app.route('/')
+    def home():
+        return jsonify({
+            "message": "Coffee Shop API",
+            "version": "1.0",
+            "status": "✅ Funcionando!",
+            "documentation": {
+                "description": "API REST para gerenciar uma cafeteria",
+                "authentication": "JWT Bearer Token",
+                "admin_credentials": {
+                    "username": "admin",
+                    "password": "admin123"
+                }
+            },
+            "endpoints": {
+                "auth": {
+                    "register": {
+                        "method": "POST",
+                        "url": "/auth/register",
+                        "description": "Registrar novo usuário",
+                        "body": {
+                            "username": "string",
+                            "email": "string", 
+                            "password": "string"
+                        }
+                    },
+                    "login": {
+                        "method": "POST", 
+                        "url": "/auth/login",
+                        "description": "Fazer login e receber token JWT",
+                        "body": {
+                            "username": "string",
+                            "password": "string"
+                        }
+                    }
+                },
+                "coffee": {
+                    "list": {
+                        "method": "GET",
+                        "url": "/coffee/",
+                        "description": "Listar todos os cafés disponíveis"
+                    },
+                    "add": {
+                        "method": "POST",
+                        "url": "/coffee/",
+                        "description": "Adicionar novo café (apenas admin)",
+                        "headers": {"Authorization": "Bearer TOKEN"},
+                        "body": {
+                            "name": "string",
+                            "description": "string",
+                            "price": "number",
+                            "stock": "number"
+                        }
+                    }
+                },
+                "purchase": {
+                    "buy": {
+                        "method": "POST",
+                        "url": "/purchase/",
+                        "description": "Realizar uma compra",
+                        "headers": {"Authorization": "Bearer TOKEN"},
+                        "body": {
+                            "coffee_id": "number",
+                            "quantity": "number"
+                        }
+                    },
+                    "history": {
+                        "method": "GET",
+                        "url": "/purchase/",
+                        "description": "Histórico de compras do usuário",
+                        "headers": {"Authorization": "Bearer TOKEN"}
+                    }
+                }
+            },
+            "usage_examples": {
+                "1_register": "curl -X POST http://localhost:5001/auth/register -H 'Content-Type: application/json' -d '{\"username\":\"test\",\"email\":\"test@test.com\",\"password\":\"123\"}'",
+                "2_login": "curl -X POST http://localhost:5001/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"admin123\"}'",
+                "3_list_coffees": "curl http://localhost:5001/coffee/",
+                "4_add_coffee": "curl -X POST http://localhost:5001/coffee/ -H 'Authorization: Bearer YOUR_TOKEN' -H 'Content-Type: application/json' -d '{\"name\":\"Espresso\",\"description\":\"Strong coffee\",\"price\":3.50,\"stock\":100}'",
+                "5_buy_coffee": "curl -X POST http://localhost:5001/purchase/ -H 'Authorization: Bearer YOUR_TOKEN' -H 'Content-Type: application/json' -d '{\"coffee_id\":1,\"quantity\":2}'"
+            }
+        })
     
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(coffee_bp, url_prefix='/coffee')
-    app.register_blueprint(purchase_bp, url_prefix='/purchase')
+    # Import and register blueprints inside the factory to avoid circular imports
+    with app.app_context():
+        from routes import auth_bp, coffee_bp, purchase_bp
+        
+        app.register_blueprint(auth_bp, url_prefix='/auth')
+        app.register_blueprint(coffee_bp, url_prefix='/coffee')
+        app.register_blueprint(purchase_bp, url_prefix='/purchase')
     
     return app
 
-# Create the app instance for deployment
-app = create_app()
-
-# Initialize database tables
-with app.app_context():
-    db.create_all()
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    app = create_app()
+    
+    with app.app_context():
+        try:
+            from models import User, Coffee, Purchase
+            db.create_all()
+            
+            # Create admin user if it doesn't exist
+            if not User.query.filter_by(username='admin').first():
+                admin = User(username='admin', email='admin@coffee.com', is_admin=True)
+                admin.set_password('admin123')
+                db.session.add(admin)
+                db.session.commit()
+                print("👤 Admin user created: admin/admin123")
+            else:
+                print("👤 Admin user already exists")
+                
+            print("✅ Database initialized!")
+            
+        except Exception as e:
+            print(f"❌ Error initializing database: {e}")
+            db.create_all()  # Try to create tables anyway
+    
+    print("\n🚀 Coffee Shop API iniciada!")
+    print("🏠 Página inicial: http://localhost:5001/")
+    print("📖 Documentação completa em: http://localhost:5001/")
+    print("🔧 Endpoints funcionais em: /auth/, /coffee/, /purchase/")
+    print("👤 Admin: admin/admin123")
+    
+    app.run(debug=True, port=5001)

@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
-from app import db
+# Import db from the new extensions.py file
+from extensions import db
 from models import User, Coffee, Purchase
 from sqlalchemy.exc import SQLAlchemyError
 import logging
