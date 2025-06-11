@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 # Import extensions from the new extensions.py file
 from extensions import db, jwt
+from swagger_config import configure_swagger
 
 # Load environment variables
 load_dotenv()
@@ -34,6 +35,9 @@ def create_app(test_config=None):
     # Initialize extensions with the app
     db.init_app(app)
     jwt.init_app(app)
+    
+    # Configure Swagger documentation
+    api = configure_swagger(app)
     
     # JWT Error Handlers
     @jwt.expired_token_loader
@@ -66,6 +70,7 @@ def create_app(test_config=None):
             "documentation": {
                 "description": "API REST para gerenciar uma cafeteria",
                 "authentication": "JWT Bearer Token",
+                "swagger_ui": "/docs/",
                 "admin_credentials": {
                     "username": "admin",
                     "password": "admin123"
@@ -139,15 +144,7 @@ def create_app(test_config=None):
                 "5_buy_coffee": "curl -X POST http://localhost:5001/purchase/ -H 'Authorization: Bearer YOUR_TOKEN' -H 'Content-Type: application/json' -d '{\"coffee_id\":1,\"quantity\":2}'"
             }
         })
-    
-    # Import and register blueprints inside the factory to avoid circular imports
-    with app.app_context():
-        from routes import auth_bp, coffee_bp, purchase_bp
         
-        app.register_blueprint(auth_bp, url_prefix='/auth')
-        app.register_blueprint(coffee_bp, url_prefix='/coffee')
-        app.register_blueprint(purchase_bp, url_prefix='/purchase')
-    
     return app
 
 # Create app instance for Gunicorn
