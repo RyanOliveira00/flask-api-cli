@@ -150,6 +150,25 @@ def create_app(test_config=None):
     
     return app
 
+# Create app instance for Gunicorn
+app = create_app()
+
+# Initialize database for production deployment
+with app.app_context():
+    try:
+        from models import User, Coffee, Purchase
+        db.create_all()
+        
+        # Create admin user if it doesn't exist
+        if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin', email='admin@coffee.com', is_admin=True)
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+    except Exception as e:
+        # In production, we might want to log this instead of print
+        db.create_all()  # Try to create tables anyway
+
 if __name__ == '__main__':
     app = create_app()
     
