@@ -40,8 +40,26 @@ The API will be available at `http://localhost:5000`
 
 ## API Documentation
 
+### Local Development
 Once the application is running, you can access the Swagger documentation at:
-`http://localhost:5000/`
+- Local: `http://localhost:5001/docs/`
+
+### Online Demo
+You can also view the live Swagger documentation at:
+- **Live Demo**: [https://flask-api-cli.onrender.com/docs/](https://flask-api-cli.onrender.com/docs/)
+
+### Using Swagger UI
+The Swagger documentation provides an interactive interface where you can:
+1. View all available endpoints and their parameters
+2. Test API calls directly from the browser
+3. See request/response examples
+4. Understand authentication requirements
+
+To authenticate in Swagger:
+1. First, call the `/auth/login` endpoint with admin credentials
+2. Copy the returned `access_token`
+3. Click the "Authorize" button in Swagger UI
+4. Enter: `Bearer YOUR_TOKEN_HERE`
 
 ## API Endpoints
 
