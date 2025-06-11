@@ -63,7 +63,7 @@ def login():
     
     user = User.query.filter_by(username=data['username']).first()
     if user and user.check_password(data['password']):
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         return jsonify({"access_token": access_token}), 200
     
     return jsonify({"error": "Invalid username or password"}), 401
@@ -97,7 +97,7 @@ def add_coffee():
     if not all(k in data for k in ('name', 'description', 'price', 'stock')):
         return jsonify({"error": "Missing required fields"}), 400
     
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
     
     if not user or not user.is_admin:
@@ -134,7 +134,7 @@ def update_coffee(coffee_id):
     data = request.get_json()
     logger.info(f"Received update data for coffee {coffee_id}: {data}")
     
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
     
     if not user or not user.is_admin:
@@ -168,7 +168,7 @@ def update_coffee(coffee_id):
 @jwt_required()
 def delete_coffee(coffee_id):
     logger.info(f"Received delete coffee request for ID: {coffee_id}")
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
     
     if not user or not user.is_admin:
@@ -200,7 +200,7 @@ def create_purchase():
     if not all(k in data for k in ('coffee_id', 'quantity')):
         return jsonify({"error": "Missing required fields"}), 400
     
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     coffee = Coffee.query.get_or_404(data['coffee_id'])
     
     if coffee.stock < data['quantity']:
@@ -237,7 +237,7 @@ def create_purchase():
 @jwt_required()
 def get_purchase_history():
     logger.info("Received get purchase history request")
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     purchases = Purchase.query.filter_by(user_id=current_user_id).all()
     
     return jsonify([{

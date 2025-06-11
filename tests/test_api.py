@@ -25,57 +25,49 @@ def app():
     return app
 
 @pytest.fixture(scope='function')
-def client(app):
-    """A test client for the app."""
+def _db(app):
+    """Create a fresh database for each test."""
     with app.app_context():
-        # Create all tables
         db.create_all()
-        
-        # Create test client
-        client = app.test_client()
-        
-        yield client
-        
-        # Clean up after test
+        yield db
         db.session.remove()
         db.drop_all()
 
 @pytest.fixture(scope='function')
-def admin_user(app, client):
+def client(app, _db):
+    """A test client for the app."""
+    return app.test_client()
+
+@pytest.fixture(scope='function')
+def admin_user(app, _db):
     """Create an admin user for testing."""
     with app.app_context():
-        # Check if user already exists
-        user = User.query.filter_by(email='admin@example.com').first()
-        if not user:
-            user = User(
-                username='admin',
-                email='admin@example.com',
-                is_admin=True
-            )
-            user.set_password('admin123')
-            db.session.add(user)
-            db.session.commit()
+        user = User(
+            username='admin',
+            email='admin@example.com',
+            is_admin=True
+        )
+        user.set_password('admin123')
+        _db.session.add(user)
+        _db.session.commit()
         return user
 
 @pytest.fixture(scope='function')
-def regular_user(app, client):
+def regular_user(app, _db):
     """Create a regular user for testing."""
     with app.app_context():
-        # Check if user already exists
-        user = User.query.filter_by(email='user@example.com').first()
-        if not user:
-            user = User(
-                username='user',
-                email='user@example.com',
-                is_admin=False
-            )
-            user.set_password('user123')
-            db.session.add(user)
-            db.session.commit()
+        user = User(
+            username='user',
+            email='user@example.com',
+            is_admin=False
+        )
+        user.set_password('user123')
+        _db.session.add(user)
+        _db.session.commit()
         return user
 
 @pytest.fixture(scope='function')
-def coffee_item(app, client):
+def coffee_item(app, _db):
     """Create a coffee item for testing."""
     with app.app_context():
         coffee = Coffee(
@@ -84,9 +76,11 @@ def coffee_item(app, client):
             price=10.0,
             stock=100
         )
-        db.session.add(coffee)
-        db.session.commit()
-        return coffee
+        _db.session.add(coffee)
+        _db.session.commit()
+        coffee_id = coffee.id
+        _db.session.expunge(coffee)  # Detach the object to avoid issues
+        return coffee_id
 
 def get_auth_token(client, username, password):
     """Helper function to get authentication token."""
@@ -125,7 +119,7 @@ def test_login_user(client, regular_user):
     assert isinstance(data['access_token'], str)
     assert len(data['access_token']) > 0
 
-def test_add_coffee_admin(client, admin_user):
+def test_add_coffee_admin(client, admin_user, _db):
     # Get admin token
     token = get_auth_token(client, 'admin', 'admin123')
     
@@ -151,7 +145,7 @@ def test_add_coffee_admin(client, admin_user):
     assert data['name'] == 'New Coffee'
     assert data['price'] == 15.0
 
-def test_add_coffee_regular_user(client, regular_user):
+def test_add_coffee_regular_user(client, regular_user, _db):
     # Get regular user token
     token = get_auth_token(client, 'user', 'user123')
     
@@ -173,14 +167,14 @@ def test_add_coffee_regular_user(client, regular_user):
     
     assert response.status_code == 403
 
-def test_purchase_coffee(client, regular_user, coffee_item):
+def test_purchase_coffee(client, regular_user, coffee_item, _db):
     # Get regular user token
     token = get_auth_token(client, 'user', 'user123')
     
     # Make purchase
     response = client.post('/purchase',
         json={
-            'coffee_id': coffee_item.id,
+            'coffee_id': coffee_item,
             'quantity': 2
         },
         headers={'Authorization': f'Bearer {token}'}
@@ -197,17 +191,17 @@ def test_purchase_coffee(client, regular_user, coffee_item):
     assert data['total_price'] == 20.0  # 2 * 10.0 (price)
     
     # Check if stock was updated
-    updated_coffee = Coffee.query.get(coffee_item.id)
+    updated_coffee = Coffee.query.get(coffee_item)
     assert updated_coffee.stock == 98
 
-def test_get_purchase_history(client, regular_user, coffee_item):
+def test_get_purchase_history(client, regular_user, coffee_item, _db):
     # Get regular user token
     token = get_auth_token(client, 'user', 'user123')
     
     # Make a purchase
     purchase_response = client.post('/purchase',
         json={
-            'coffee_id': coffee_item.id,
+            'coffee_id': coffee_item,
             'quantity': 1
         },
         headers={'Authorization': f'Bearer {token}'}
