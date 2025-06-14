@@ -2,7 +2,6 @@ from flask_restx import Api
 from routes_swagger import auth_ns, coffee_ns, purchase_ns
 
 def configure_swagger(app):
-    """Configure Swagger documentation for the Flask app"""
     api = Api(
         app,
         version='1.0',
@@ -20,7 +19,6 @@ def configure_swagger(app):
         security='Bearer'
     )
     
-    # Register namespaces
     api.add_namespace(auth_ns, path='/auth')
     api.add_namespace(coffee_ns, path='/coffee')
     api.add_namespace(purchase_ns, path='/purchase')

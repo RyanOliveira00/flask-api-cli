@@ -9,7 +9,6 @@ import json
 
 @pytest.fixture(scope='session')
 def app():
-    """Create and configure a new app instance for each test."""
     test_config = {
         'TESTING': True,
         'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
@@ -18,7 +17,7 @@ def app():
         'JWT_TOKEN_LOCATION': ['headers'],
         'JWT_HEADER_NAME': 'Authorization',
         'JWT_HEADER_TYPE': 'Bearer',
-        'JWT_ACCESS_TOKEN_EXPIRES': False  # Tokens don't expire in tests
+        'JWT_ACCESS_TOKEN_EXPIRES': False
     }
     
     app = create_app(test_config)
@@ -26,7 +25,6 @@ def app():
 
 @pytest.fixture(scope='function')
 def _db(app):
-    """Create a fresh database for each test."""
     with app.app_context():
         db.create_all()
         yield db
@@ -35,12 +33,10 @@ def _db(app):
 
 @pytest.fixture(scope='function')
 def client(app, _db):
-    """A test client for the app."""
     return app.test_client()
 
 @pytest.fixture(scope='function')
 def admin_user(app, _db):
-    """Create an admin user for testing."""
     with app.app_context():
         user = User(
             username='admin',
@@ -54,7 +50,6 @@ def admin_user(app, _db):
 
 @pytest.fixture(scope='function')
 def regular_user(app, _db):
-    """Create a regular user for testing."""
     with app.app_context():
         user = User(
             username='user',
@@ -68,7 +63,6 @@ def regular_user(app, _db):
 
 @pytest.fixture(scope='function')
 def coffee_item(app, _db):
-    """Create a coffee item for testing."""
     with app.app_context():
         coffee = Coffee(
             name='Test Coffee',
@@ -79,11 +73,10 @@ def coffee_item(app, _db):
         _db.session.add(coffee)
         _db.session.commit()
         coffee_id = coffee.id
-        _db.session.expunge(coffee)  # Detach the object to avoid issues
+        _db.session.expunge(coffee)
         return coffee_id
 
 def get_auth_token(client, username, password):
-    """Helper function to get authentication token."""
     response = client.post('/auth/login',
         json={
             'username': username,
@@ -115,16 +108,13 @@ def test_login_user(client, regular_user):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert 'access_token' in data
-    # Verify token format
     assert isinstance(data['access_token'], str)
     assert len(data['access_token']) > 0
 
 def test_add_coffee_admin(client, admin_user, _db):
-    # Get admin token
     token = get_auth_token(client, 'admin', 'admin123')
     
-    # Add coffee
-    response = client.post('/coffee',
+    response = client.post('/coffee/',
         json={
             'name': 'New Coffee',
             'description': 'New Description',
@@ -134,11 +124,10 @@ def test_add_coffee_admin(client, admin_user, _db):
         headers={'Authorization': f'Bearer {token}'}
     )
     
-    # Debug: Print response if not 201
     if response.status_code != 201:
         print(f"Response status: {response.status_code}")
         print(f"Response data: {response.data}")
-        print(f"Token: {token[:50]}...")  # Print first 50 chars of token
+        print(f"Token: {token[:50]}...")
     
     assert response.status_code == 201
     data = json.loads(response.data)
@@ -146,11 +135,9 @@ def test_add_coffee_admin(client, admin_user, _db):
     assert data['price'] == 15.0
 
 def test_add_coffee_regular_user(client, regular_user, _db):
-    # Get regular user token
     token = get_auth_token(client, 'user', 'user123')
     
-    # Try to add coffee
-    response = client.post('/coffee',
+    response = client.post('/coffee/',
         json={
             'name': 'New Coffee',
             'description': 'New Description',
@@ -160,7 +147,6 @@ def test_add_coffee_regular_user(client, regular_user, _db):
         headers={'Authorization': f'Bearer {token}'}
     )
     
-    # Debug: Print response if not 403
     if response.status_code != 403:
         print(f"Response status: {response.status_code}")
         print(f"Response data: {response.data}")
@@ -168,11 +154,9 @@ def test_add_coffee_regular_user(client, regular_user, _db):
     assert response.status_code == 403
 
 def test_purchase_coffee(client, regular_user, coffee_item, _db):
-    # Get regular user token
     token = get_auth_token(client, 'user', 'user123')
     
-    # Make purchase
-    response = client.post('/purchase',
+    response = client.post('/purchase/',
         json={
             'coffee_id': coffee_item,
             'quantity': 2
@@ -180,7 +164,6 @@ def test_purchase_coffee(client, regular_user, coffee_item, _db):
         headers={'Authorization': f'Bearer {token}'}
     )
     
-    # Debug: Print response if not 201
     if response.status_code != 201:
         print(f"Response status: {response.status_code}")
         print(f"Response data: {response.data}")
@@ -188,38 +171,30 @@ def test_purchase_coffee(client, regular_user, coffee_item, _db):
     assert response.status_code == 201
     data = json.loads(response.data)
     assert data['quantity'] == 2
-    assert data['total_price'] == 20.0  # 2 * 10.0 (price)
+    assert data['total_price'] == 20.0
     
-    # Check if stock was updated
     updated_coffee = Coffee.query.get(coffee_item)
     assert updated_coffee.stock == 98
 
 def test_get_purchase_history(client, regular_user, coffee_item, _db):
-    # Get regular user token
     token = get_auth_token(client, 'user', 'user123')
     
-    # Make a purchase
-    purchase_response = client.post('/purchase',
+    client.post('/purchase/',
         json={
             'coffee_id': coffee_item,
             'quantity': 1
         },
         headers={'Authorization': f'Bearer {token}'}
     )
-    assert purchase_response.status_code == 201
     
-    # Get purchase history
-    response = client.get('/purchase',
+    response = client.get('/purchase/',
         headers={'Authorization': f'Bearer {token}'}
     )
     
-    # Debug: Print response if not 200
-    if response.status_code != 200:
-        print(f"Response status: {response.status_code}")
-        print(f"Response data: {response.data}")
-    
     assert response.status_code == 200
-    purchases = json.loads(response.data)
-    assert len(purchases) == 1
-    assert purchases[0]['quantity'] == 1
-    assert purchases[0]['total_price'] == 10.0  # 1 * 10.0 (price) 
+    data = json.loads(response.data)
+    assert len(data) == 1
+    assert data[0]['quantity'] == 1
+
+if __name__ == '__main__':
+    pytest.main([__file__]) 

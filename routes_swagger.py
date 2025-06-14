@@ -6,16 +6,12 @@ from models import User, Coffee, Purchase
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create namespaces for organizing endpoints
 auth_ns = Namespace('auth', description='Operações de autenticação')
 coffee_ns = Namespace('coffee', description='Operações com cafés')
 purchase_ns = Namespace('purchase', description='Operações de compra')
-
-# Models for documentation
 user_model = auth_ns.model('User', {
     'username': fields.String(required=True, description='Nome de usuário'),
     'email': fields.String(required=True, description='Email do usuário'),
@@ -70,7 +66,6 @@ success_model = auth_ns.model('Success', {
     'message': fields.String(description='Mensagem de sucesso')
 })
 
-# Authentication routes
 @auth_ns.route('/register')
 class Register(Resource):
     @auth_ns.doc('register_user')
@@ -79,7 +74,6 @@ class Register(Resource):
     @auth_ns.response(400, 'Dados inválidos ou usuário já existe', error_model)
     @auth_ns.response(500, 'Erro interno do servidor', error_model)
     def post(self):
-        """Registrar um novo usuário"""
         logger.info("Received register request")
         if not request.is_json:
             logger.error("Request is not JSON")
@@ -119,7 +113,6 @@ class Login(Resource):
     @auth_ns.response(400, 'Dados inválidos', error_model)
     @auth_ns.response(401, 'Credenciais inválidas', error_model)
     def post(self):
-        """Fazer login e obter token JWT"""
         logger.info("Received login request")
         if not request.is_json:
             logger.error("Request is not JSON")
@@ -138,13 +131,11 @@ class Login(Resource):
         
         return {"error": "Invalid username or password"}, 401
 
-# Coffee routes
 @coffee_ns.route('/')
 class CoffeeList(Resource):
     @coffee_ns.doc('list_coffees')
     @coffee_ns.response(200, 'Lista de cafés disponíveis', [coffee_response_model])
     def get(self):
-        """Listar todos os cafés disponíveis"""
         logger.info("Received get coffees request")
         coffees = Coffee.query.all()
         return [{
@@ -163,7 +154,6 @@ class CoffeeList(Resource):
     @coffee_ns.response(500, 'Erro interno do servidor', error_model)
     @jwt_required()
     def post(self):
-        """Adicionar um novo café (apenas administradores)"""
         logger.info("Received add coffee request")
         if not request.is_json:
             logger.error("Request is not JSON")
@@ -212,7 +202,6 @@ class CoffeeDetail(Resource):
     @coffee_ns.response(500, 'Erro interno do servidor', error_model)
     @jwt_required()
     def put(self, coffee_id):
-        """Atualizar um café existente (apenas administradores)"""
         logger.info(f"Received update coffee request for ID: {coffee_id}")
         if not request.is_json:
             logger.error("Request is not JSON")
@@ -258,7 +247,6 @@ class CoffeeDetail(Resource):
     @coffee_ns.response(500, 'Erro interno do servidor', error_model)
     @jwt_required()
     def delete(self, coffee_id):
-        """Deletar um café (apenas administradores)"""
         logger.info(f"Received delete coffee request for ID: {coffee_id}")
         current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
@@ -276,7 +264,6 @@ class CoffeeDetail(Resource):
             db.session.rollback()
             return {"error": str(e)}, 500
 
-# Purchase routes
 @purchase_ns.route('/')
 class PurchaseList(Resource):
     @purchase_ns.doc('create_purchase')
@@ -287,7 +274,6 @@ class PurchaseList(Resource):
     @purchase_ns.response(500, 'Erro interno do servidor', error_model)
     @jwt_required()
     def post(self):
-        """Realizar uma compra"""
         logger.info("Received create purchase request")
         if not request.is_json:
             logger.error("Request is not JSON")
@@ -300,22 +286,34 @@ class PurchaseList(Resource):
             return {"error": "Missing required fields"}, 400
         
         current_user_id = int(get_jwt_identity())
-        coffee = Coffee.query.get_or_404(data['coffee_id'])
+        user = User.query.get(current_user_id)
         
-        if coffee.stock < data['quantity']:
-            return {"error": "Not enough stock available"}, 400
+        if not user:
+            return {"error": "User not found"}, 404
+        
+        coffee = Coffee.query.get(data['coffee_id'])
+        if not coffee:
+            return {"error": "Coffee not found"}, 404
+        
+        quantity = int(data['quantity'])
+        if quantity <= 0:
+            return {"error": "Quantity must be positive"}, 400
+        
+        if coffee.stock < quantity:
+            return {"error": "Insufficient stock"}, 400
+        
+        total_price = coffee.price * quantity
         
         try:
-            total_price = coffee.price * data['quantity']
-            
             purchase = Purchase(
                 user_id=current_user_id,
                 coffee_id=coffee.id,
-                quantity=data['quantity'],
+                quantity=quantity,
                 total_price=total_price
             )
             
-            coffee.stock -= data['quantity']
+            coffee.stock -= quantity
+            
             db.session.add(purchase)
             db.session.commit()
             
@@ -323,6 +321,7 @@ class PurchaseList(Resource):
                 'id': purchase.id,
                 'user_id': purchase.user_id,
                 'coffee_id': purchase.coffee_id,
+                'coffee_name': coffee.name,
                 'quantity': purchase.quantity,
                 'total_price': purchase.total_price,
                 'purchase_date': purchase.created_at.isoformat()
@@ -335,13 +334,14 @@ class PurchaseList(Resource):
     @purchase_ns.response(200, 'Histórico de compras do usuário', [purchase_response_model])
     @jwt_required()
     def get(self):
-        """Obter histórico de compras do usuário logado"""
         logger.info("Received get purchase history request")
         current_user_id = int(get_jwt_identity())
+        
         purchases = Purchase.query.filter_by(user_id=current_user_id).all()
         
         return [{
             'id': purchase.id,
+            'user_id': purchase.user_id,
             'coffee_id': purchase.coffee_id,
             'coffee_name': purchase.coffee.name,
             'quantity': purchase.quantity,

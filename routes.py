@@ -1,21 +1,16 @@
 from flask import request, jsonify, Blueprint
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
-# Import db from the new extensions.py file
 from extensions import db
 from models import User, Coffee, Purchase
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create blueprints
 auth_bp = Blueprint('auth', __name__)
 coffee_bp = Blueprint('coffee', __name__)
 purchase_bp = Blueprint('purchase', __name__)
-
-# Authentication routes
 @auth_bp.route('/register', methods=['POST'], strict_slashes=False)
 def register():
     logger.info("Received register request")
@@ -69,7 +64,6 @@ def login():
     
     return jsonify({"error": "Invalid username or password"}), 401
 
-# Coffee routes
 @coffee_bp.route('', methods=['GET'])
 @coffee_bp.route('/', methods=['GET'])
 def get_coffees():
@@ -185,7 +179,6 @@ def delete_coffee(coffee_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# Purchase routes
 @purchase_bp.route('', methods=['POST'])
 @purchase_bp.route('/', methods=['POST'])
 @jwt_required()
@@ -202,22 +195,34 @@ def create_purchase():
         return jsonify({"error": "Missing required fields"}), 400
     
     current_user_id = int(get_jwt_identity())
-    coffee = Coffee.query.get_or_404(data['coffee_id'])
+    user = User.query.get(current_user_id)
     
-    if coffee.stock < data['quantity']:
-        return jsonify({"error": "Not enough stock available"}), 400
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    coffee = Coffee.query.get(data['coffee_id'])
+    if not coffee:
+        return jsonify({"error": "Coffee not found"}), 404
+    
+    quantity = int(data['quantity'])
+    if quantity <= 0:
+        return jsonify({"error": "Quantity must be positive"}), 400
+    
+    if coffee.stock < quantity:
+        return jsonify({"error": "Insufficient stock"}), 400
+    
+    total_price = coffee.price * quantity
     
     try:
-        total_price = coffee.price * data['quantity']
-        
         purchase = Purchase(
             user_id=current_user_id,
             coffee_id=coffee.id,
-            quantity=data['quantity'],
+            quantity=quantity,
             total_price=total_price
         )
         
-        coffee.stock -= data['quantity']
+        coffee.stock -= quantity
+        
         db.session.add(purchase)
         db.session.commit()
         
@@ -225,6 +230,7 @@ def create_purchase():
             'id': purchase.id,
             'user_id': purchase.user_id,
             'coffee_id': purchase.coffee_id,
+            'coffee_name': coffee.name,
             'quantity': purchase.quantity,
             'total_price': purchase.total_price,
             'purchase_date': purchase.created_at.isoformat()
@@ -239,10 +245,12 @@ def create_purchase():
 def get_purchase_history():
     logger.info("Received get purchase history request")
     current_user_id = int(get_jwt_identity())
+    
     purchases = Purchase.query.filter_by(user_id=current_user_id).all()
     
     return jsonify([{
         'id': purchase.id,
+        'user_id': purchase.user_id,
         'coffee_id': purchase.coffee_id,
         'coffee_name': purchase.coffee.name,
         'quantity': purchase.quantity,

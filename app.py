@@ -3,17 +3,14 @@ from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
-# Import extensions from the new extensions.py file
 from extensions import db, jwt
 from swagger_config import configure_swagger
 
-# Load environment variables
 load_dotenv()
 
 def create_app(test_config=None):
     app = Flask(__name__)
     
-    # Configurations
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///coffee_shop.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key')
@@ -23,23 +20,17 @@ def create_app(test_config=None):
     app.config['JSON_SORT_KEYS'] = False
     app.config['JSONIFY_MIMETYPE'] = 'application/json'
     
-    # JWT Configuration
     app.config['JWT_TOKEN_LOCATION'] = ['headers']
     app.config['JWT_HEADER_NAME'] = 'Authorization'
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
     
-    # Override config with test config if provided
     if test_config:
         app.config.update(test_config)
     
-    # Initialize extensions with the app
     db.init_app(app)
     jwt.init_app(app)
     
-    # Configure Swagger documentation
     api = configure_swagger(app)
-    
-    # JWT Error Handlers
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
         return jsonify({"error": "Token has expired"}), 401
@@ -60,7 +51,6 @@ def create_app(test_config=None):
     def revoked_token_callback(jwt_header, jwt_payload):
         return jsonify({"error": "Token has been revoked"}), 401
     
-    # Add a simple route to show available endpoints
     @app.route('/')
     def home():
         return jsonify({
@@ -70,7 +60,8 @@ def create_app(test_config=None):
             "documentation": {
                 "description": "API REST para gerenciar uma cafeteria",
                 "authentication": "JWT Bearer Token",
-                "swagger_ui": "/docs/",
+                "swagger_ui_local": "/docs/",
+                "swagger_ui_online": "https://flask-api-cli.onrender.com/docs/",
                 "admin_credentials": {
                     "username": "admin",
                     "password": "admin123"
@@ -147,24 +138,20 @@ def create_app(test_config=None):
         
     return app
 
-# Create app instance for Gunicorn
 app = create_app()
 
-# Initialize database for production deployment
 with app.app_context():
     try:
         from models import User, Coffee, Purchase
         db.create_all()
         
-        # Create admin user if it doesn't exist
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', email='admin@coffee.com', is_admin=True)
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
     except Exception as e:
-        # In production, we might want to log this instead of print
-        db.create_all()  # Try to create tables anyway
+        db.create_all()
 
 if __name__ == '__main__':
     app = create_app()
@@ -174,7 +161,6 @@ if __name__ == '__main__':
             from models import User, Coffee, Purchase
             db.create_all()
             
-            # Create admin user if it doesn't exist
             if not User.query.filter_by(username='admin').first():
                 admin = User(username='admin', email='admin@coffee.com', is_admin=True)
                 admin.set_password('admin123')
@@ -188,7 +174,7 @@ if __name__ == '__main__':
             
         except Exception as e:
             print(f"❌ Error initializing database: {e}")
-            db.create_all()  # Try to create tables anyway
+            db.create_all()
     
     print("\n🚀 Coffee Shop API iniciada!")
     print("🏠 Página inicial: http://localhost:5001/")
