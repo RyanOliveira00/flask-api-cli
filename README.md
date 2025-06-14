@@ -1,93 +1,197 @@
-# Coffee Shop API
+# ☕ Coffee Shop - Sistema Completo
 
-A RESTful API for a coffee shop built with Flask, featuring authentication, CRUD operations, and Swagger documentation.
+Um sistema completo de cafeteria composto por uma API RESTful em Flask e um aplicativo mobile em React Native.
 
-## Features
+## 🏗️ Arquitetura do Projeto
 
-- User authentication with JWT
-- CRUD operations for coffee products
-- Purchase system with stock management
-- Swagger documentation
-- Unit tests with pytest
-- CI/CD pipeline with GitHub Actions
+Este repositório contém dois projetos principais:
 
-## Setup
+- **`CoffeeShopApi/`** - API REST em Flask com autenticação JWT
+- **`CoffeeShopApp/`** - Aplicativo mobile em React Native Expo
 
-1. Create a virtual environment:
+## 🚀 Funcionalidades Principais
+
+### 🔐 Autenticação
+- Sistema de login/registro com JWT
+- Controle de acesso por roles (usuário/admin)
+- Tokens seguros com expiração
+
+### ☕ Gestão de Cafés
+- CRUD completo de produtos
+- Controle de estoque
+- Preços e descrições detalhadas
+
+### 🛒 Sistema de Compras
+- Carrinho de compras
+- Histórico de transações
+- Controle de estoque automático
+
+### 📱 Interface Mobile
+- App nativo para iOS e Android
+- Interface moderna e intuitiva
+- Sincronização em tempo real com a API
+
+## 📖 Documentação da API
+
+### 🌐 Documentação Online (Swagger)
+Acesse a documentação interativa da API:
+**[https://flask-api-cli.onrender.com/docs/](https://flask-api-cli.onrender.com/docs/)**
+
+### 🔧 Documentação Local
+Quando rodando localmente, acesse: `http://localhost:5001/docs/`
+
+## 🚀 Quick Start
+
+### 1. Clone o Repositório
 ```bash
+x
+```
+
+### 2. Configure a API (Flask)
+```bash
+cd CoffeeShopApi
+
+# Crie um ambiente virtual
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
+source .venv/bin/activate  # No Windows: .venv\Scripts\activate
 
-2. Install dependencies:
-```bash
+# Instale as dependências
 pip install -r requirements.txt
-```
 
-3. Set up environment variables:
-Create a `.env` file with the following variables:
-```
-DATABASE_URL=sqlite:///coffee_shop.db
-JWT_SECRET_KEY=your-secret-key
-```
+# Configure as variáveis de ambiente
+# Crie um arquivo .env com:
+# DATABASE_URL=sqlite:///coffee_shop.db
+# JWT_SECRET_KEY=your-secret-key
 
-4. Run the application:
-```bash
+# Execute a API
 python app.py
 ```
 
-The API will be available at `http://localhost:5000`
+A API estará disponível em `http://localhost:5001`
 
-## API Documentation
-
-### Local Development
-Once the application is running, you can access the Swagger documentation at:
-- Local: `http://localhost:5001/docs/`
-
-### Online Demo
-You can also view the live Swagger documentation at:
-- **Live Demo**: [https://flask-api-cli.onrender.com/docs/](https://flask-api-cli.onrender.com/docs/)
-
-### Using Swagger UI
-The Swagger documentation provides an interactive interface where you can:
-1. View all available endpoints and their parameters
-2. Test API calls directly from the browser
-3. See request/response examples
-4. Understand authentication requirements
-
-To authenticate in Swagger:
-1. First, call the `/auth/login` endpoint with admin credentials
-2. Copy the returned `access_token`
-3. Click the "Authorize" button in Swagger UI
-4. Enter: `Bearer YOUR_TOKEN_HERE`
-
-## API Endpoints
-
-### Authentication
-- POST `/auth/register` - Register a new user
-- POST `/auth/login` - Login and get JWT token
-
-### Coffee
-- GET `/coffee` - List all coffee products
-- POST `/coffee` - Add new coffee (admin only)
-- GET `/coffee/<id>` - Get coffee details
-- PUT `/coffee/<id>` - Update coffee (admin only)
-- DELETE `/coffee/<id>` - Delete coffee (admin only)
-
-### Purchase
-- POST `/purchase` - Make a purchase (authenticated users)
-- GET `/purchase` - Get purchase history (authenticated users)
-
-## Running Tests
-
+### 3. Configure o App Mobile (React Native)
 ```bash
+cd ../CoffeeShopApp
+
+# Instale as dependências
+npm install
+
+# Configure a URL da API em src/utils/config.ts
+# BASE_URL: 'http://localhost:5001'
+
+# Execute o app
+npx expo start
+```
+
+## 📁 Estrutura do Projeto
+
+```
+casseb/
+├── CoffeeShopApi/          # API Flask
+│   ├── app.py             # Aplicação principal
+│   ├── models.py          # Modelos do banco de dados
+│   ├── routes.py          # Rotas da API
+│   ├── routes_swagger.py  # Rotas com documentação Swagger
+│   ├── requirements.txt   # Dependências Python
+│   └── tests/             # Testes unitários
+│
+├── CoffeeShopApp/          # App React Native
+│   ├── src/
+│   │   ├── components/    # Componentes reutilizáveis
+│   │   ├── screens/       # Telas do aplicativo
+│   │   ├── services/      # Serviços de API
+│   │   └── contexts/      # Contextos (Auth)
+│   ├── App.tsx           # Componente principal
+│   └── package.json      # Dependências Node.js
+│
+└── README.md             # Este arquivo
+```
+
+## 🔧 Tecnologias Utilizadas
+
+### Backend (API)
+- **Flask** - Framework web Python
+- **SQLAlchemy** - ORM para banco de dados
+- **JWT** - Autenticação stateless
+- **Swagger/OpenAPI** - Documentação interativa
+- **pytest** - Testes unitários
+
+### Frontend (Mobile)
+- **React Native** - Framework mobile multiplataforma
+- **Expo** - Plataforma de desenvolvimento
+- **TypeScript** - Tipagem estática
+- **React Navigation** - Navegação entre telas
+- **Axios** - Cliente HTTP
+
+## 🔗 Endpoints Principais da API
+
+### Autenticação
+- `POST /auth/register` - Registro de usuário
+- `POST /auth/login` - Login e obtenção do token JWT
+
+### Cafés
+- `GET /coffee` - Listar todos os cafés
+- `POST /coffee` - Adicionar café (admin apenas)
+- `GET /coffee/<id>` - Detalhes do café
+- `PUT /coffee/<id>` - Atualizar café (admin apenas)
+- `DELETE /coffee/<id>` - Excluir café (admin apenas)
+
+### Compras
+- `POST /purchase` - Realizar compra
+- `GET /purchase` - Histórico de compras
+
+## 🧪 Executando Testes
+
+### Testes da API
+```bash
+cd CoffeeShopApi
 pytest -s tests/ -v
 ```
 
-## CI/CD
+## 🚀 Deploy
 
-The project includes a GitHub Actions workflow that:
-1. Runs flake8 for code linting
-2. Executes pytest for unit testing
+### API
+A API está deployada no Render:
+- **URL de Produção**: `https://flask-api-cli.onrender.com`
+- **Documentação**: `https://flask-api-cli.onrender.com/docs/`
 
-The workflow runs automatically on push to main and on pull requests. 
+### App Mobile
+Para build de produção:
+```bash
+cd CoffeeShopApp
+
+# Android
+npx expo build:android
+
+# iOS
+npx expo build:ios
+```
+
+## 👥 Credenciais de Teste
+
+Para testar o sistema, use:
+- **Admin**: `admin` / `admin123`
+- Ou crie uma nova conta através do registro
+
+## 📝 CI/CD
+
+O projeto inclui pipeline GitHub Actions que:
+- Executa linting com flake8
+- Roda testes unitários com pytest
+- Ativa automaticamente em push/PR para main
+
+## 🤝 Contribuindo
+
+1. Fork o projeto
+2. Crie uma branch para sua feature
+3. Commit suas mudanças
+4. Push para a branch
+5. Abra um Pull Request
+
+## 📄 Licença
+
+Este projeto foi desenvolvido para fins educacionais e demonstração de integração entre APIs REST e aplicações mobile.
+
+---
+
+**Desenvolvido com ❤️ usando Flask e React Native** 
